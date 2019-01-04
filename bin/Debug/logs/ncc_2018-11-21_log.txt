@@ -1,0 +1,28 @@
+2018-11-21 21:02:58.8841|INFO|NCCGovNotifyAttachments.Program|NCC Gov Notify Attachment Scheduler Start************************
+2018-11-21 21:03:06.5959|DEBUG|NCCGovNotifyAttachments.Data|Calling query for Fetch all
+2018-11-21 21:03:07.3900|DEBUG|NCCGovNotifyAttachments.Data|Coming back with result 2
+2018-11-21 21:03:07.7200|DEBUG|NCCGovNotifyAttachments.GovNotify|Inside SendEmail for Id = 15
+2018-11-21 21:03:07.7580|DEBUG|NCCGovNotifyAttachments.GovNotify|In progress with for GeneratePdfDocument
+2018-11-21 21:03:12.6925|DEBUG|NCCPdfReports.BuildDoc|Inside GeneratePdfDocument
+2018-11-21 21:03:13.8186|DEBUG|NCCPdfReports.BuildDoc|Called API https://sandboxapi.hackney.gov.uk/manageatenancy/v1/Contacts/GetContactDetails?contactId=94f04398-767b-e811-8130-70106faa6a31
+2018-11-21 21:03:14.0107|DEBUG|NCCPdfReports.BuildDoc|Called API https://sandboxapi.hackney.gov.uk/manageatenancy/v1/Accounts/AccountDetailsByContactId?contactid=94f04398-767b-e811-8130-70106faa6a31
+2018-11-21 21:03:14.0107|DEBUG|NCCPdfReports.BuildDoc|Setting Template header
+2018-11-21 21:04:42.1885|INFO|NCCGovNotifyAttachments.Program|NCC Gov Notify Attachment Scheduler Start************************
+2018-11-21 21:04:48.4001|DEBUG|NCCGovNotifyAttachments.Data|Calling query for Fetch all
+2018-11-21 21:04:49.0702|DEBUG|NCCGovNotifyAttachments.Data|Coming back with result 2
+2018-11-21 21:04:49.4552|DEBUG|NCCGovNotifyAttachments.GovNotify|Inside SendEmail for Id = 15
+2018-11-21 21:04:49.4902|DEBUG|NCCGovNotifyAttachments.GovNotify|In progress with for GeneratePdfDocument
+2018-11-21 21:04:51.4644|DEBUG|NCCPdfReports.BuildDoc|Inside GeneratePdfDocument
+2018-11-21 21:04:52.1095|DEBUG|NCCPdfReports.BuildDoc|Called API https://sandboxapi.hackney.gov.uk/manageatenancy/v1/Contacts/GetContactDetails?contactId=94f04398-767b-e811-8130-70106faa6a31
+2018-11-21 21:04:52.2525|DEBUG|NCCPdfReports.BuildDoc|Called API https://sandboxapi.hackney.gov.uk/manageatenancy/v1/Accounts/AccountDetailsByContactId?contactid=94f04398-767b-e811-8130-70106faa6a31
+2018-11-21 21:04:52.4455|DEBUG|NCCPdfReports.BuildDoc|Setting Template header
+2018-11-21 21:05:02.0355|DEBUG|NCCPdfReports.BuildDoc|Before calling manage api for transaction history
+2018-11-21 21:05:02.3215|DEBUG|NCCPdfReports.BuildDoc|Called API https://sandboxapi.hackney.gov.uk/manageatenancy/v1/Transactions?tagReference=015969/01
+2018-11-21 21:05:02.3215|DEBUG|NCCPdfReports.BuildDoc|Got some transaction result
+2018-11-21 21:05:02.3215|DEBUG|NCCPdfReports.BuildDoc|Build Document with record count 23
+2018-11-21 21:05:02.3655|DEBUG|NCCGovNotifyAttachments.GovNotify|Document Created
+2018-11-21 21:05:02.6225|DEBUG|NCCGovNotifyAttachments.GovNotify|Document Size = 80516
+2018-11-21 21:05:02.6735|DEBUG|NCCGovNotifyAttachments.GovNotify|Creating Personalization
+2018-11-21 21:05:02.6735|DEBUG|NCCGovNotifyAttachments.GovNotify|Adding Personalization for key = rent amount value = 96.15
+2018-11-21 21:05:02.6735|DEBUG|NCCGovNotifyAttachments.GovNotify|Adding Personalization for key = rent balance value = 1787.58
+2018-11-21 21:05:02.6735|DEBUG|NCCGovNotifyAttachments.GovNotify|Linked document to template
