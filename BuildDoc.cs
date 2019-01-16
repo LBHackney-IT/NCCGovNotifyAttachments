@@ -17,9 +17,12 @@ namespace NCCPdfReports
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
         string PdfLicenceKey = ConfigurationManager.AppSettings["PdfLicenceKey"];
-        private string ManageTenancyAPIURL = ConfigurationManager.AppSettings["ManageTenancyAPIURL"];
         private string ContactDetailsAPIURL = ConfigurationManager.AppSettings["ContactDetailsAPIURL"];
+        private string SandboxContactDetailsAPIURL = ConfigurationManager.AppSettings["SandboxContactDetailsAPIURL"];
+        private string TransactionDetailsAPIURL = ConfigurationManager.AppSettings["TransactionDetailsAPIURL"];
+        private string TransactionStatementsAPIURl = ConfigurationManager.AppSettings["TransactionStatementsAPIURl"];
         private string AccountsDetailAPIURl = ConfigurationManager.AppSettings["AccountsDetailAPIURl"];
+        private string RentBreakdownAPIURl = ConfigurationManager.AppSettings["RentBreakdownAPIURl"];
 
         // Template for document elements
         private Template template = new Template();
@@ -41,9 +44,11 @@ namespace NCCPdfReports
         private static float POS_OUTOF = 350;
         private static float POS_BALANCE = 450;
         private static float TABLE_TOP = 200;
+        private static float PAGE_MIDDLE = 300;
         private float CURRENT_Y = TABLE_TOP + 30;
         private float bodyTop = TABLE_TOP + 30;
         int NormalFontSize = 14;
+        int TitleFontSize = 30;
         int BoldFontSize = 14;
         int BoldFontSize2 = 12;
         string CurrentBalance = "";
@@ -56,7 +61,7 @@ namespace NCCPdfReports
 
         }
 
-        public Document GeneratePdfDocument(string contactId, string sStartDate, string sEndDate)
+        public Document GeneratePdfDocument(string contactId, string tenAgreementRef, string sStartDate)
         {
             logger.Debug($@"Inside GeneratePdfDocument");
             // Create a document and set it's properties
@@ -67,45 +72,53 @@ namespace NCCPdfReports
             document.Author = "ceTe Software";
             document.Title = "NCC Customer Reports";
 
-            if (string.IsNullOrEmpty(contactId) || string.IsNullOrEmpty(sStartDate) || string.IsNullOrEmpty(sEndDate))
+            if (string.IsNullOrEmpty(contactId) || string.IsNullOrEmpty(tenAgreementRef) || string.IsNullOrEmpty(sStartDate))
             {
-                logger.Debug($@"Either contactid , startdate or enddate are null");
+                logger.Debug($@"Either contactid , tenAgreementRef or start date are null");
                 return null;
             }
 
             DateTime startDate = DateTime.Parse(sStartDate);
-            DateTime endDate = DateTime.Parse(sEndDate);
             var jsonciresponse = ExecuteAPI(ContactDetailsAPIURL, contactId);
             logger.Debug($@"Called API {ContactDetailsAPIURL+contactId}");
             if (jsonciresponse == null)
             {
+                logger.Debug($@"Result json is null for contacts api try sandbox");
+                string SandboxContactDetailsAPIURL = ConfigurationManager.AppSettings["SandboxContactDetailsAPIURL"];
+                jsonciresponse = ExecuteAPI(SandboxContactDetailsAPIURL, contactId);
+            }
+
+            if (jsonciresponse == null)
+            {
                 logger.Debug($@"Result json is null for contacts api");
             }
-            var housingtagref = "";
-            var jsonaccresponse = ExecuteAPI(AccountsDetailAPIURl, contactId);
-            logger.Debug($@"Called API {AccountsDetailAPIURl + contactId}");
-            if (jsonaccresponse?["results"] != null)
+            var jsonrentbreakiresponse = ExecuteAPIRetJArray(RentBreakdownAPIURl, $@"{tenAgreementRef}");
+            if (jsonrentbreakiresponse == null)
             {
-                var accResponse = jsonaccresponse["results"];
-                housingtagref = accResponse["tagReferenceNumber"].ToString();
+                logger.Debug($@"Result json is null for reny breakdown api");
+            }
+
+            var jsontransdetresponse = ExecuteAPI(TransactionDetailsAPIURL, tenAgreementRef);
+            logger.Debug($@"Called API {TransactionDetailsAPIURL + tenAgreementRef}");
+            if (jsontransdetresponse != null && jsonciresponse != null)
+            {
 
                 logger.Debug($@"Setting Template header");
                 // Adds elements to the header template
-                document.Template = SetTemplate(startDate.ToShortDateString(), endDate.ToShortDateString(), jsonciresponse, accResponse);
-            }
-
-            logger.Debug($@"Before calling manage api for transaction history");
-            var jsontransresponse = ExecuteAPI(ManageTenancyAPIURL, housingtagref);
-            logger.Debug($@"Called API {ManageTenancyAPIURL + housingtagref}");
-            if (jsontransresponse?["results"] != null)
-            {
-                logger.Debug($@"Got some transaction result");
-                var transResponse = jsontransresponse["results"].ToList();
-                if (transResponse.Count > 0)
+                document.Template = SetTemplate(tenAgreementRef, startDate.ToShortDateString(), jsonciresponse, jsontransdetresponse, jsonrentbreakiresponse);
+                if (jsontransdetresponse != null && jsonciresponse != null)
                 {
-                    logger.Debug($@"Build Document with record count {transResponse.Count}");
-                    // Builds the report
-                    BuildDocument(startDate, endDate, document, transResponse);
+                    // Adds elements to the header template
+                    document.Template = SetTemplate(tenAgreementRef, startDate.ToShortDateString(), jsonciresponse, jsontransdetresponse, jsonrentbreakiresponse);
+                    string parameters = $@"{tenAgreementRef}&startdate={startDate}";
+                    var jsontranshistresponse = ExecuteAPIRetJArray(TransactionStatementsAPIURl, parameters);
+                    logger.Debug($@"Called API {TransactionStatementsAPIURl + parameters}");
+                    if (jsontranshistresponse != null)
+                    {
+                        logger.Debug($@"Build Document with record count {jsontranshistresponse.Count}");
+                        // Builds the report
+                        BuildDocument(startDate, document, jsontranshistresponse);
+                    }
                 }
             }
             return document;
@@ -120,45 +133,81 @@ namespace NCCPdfReports
                 var jresponse = JsonConvert.DeserializeObject<JObject>(response);
                 return jresponse;
             }
-
+        }
+        public JArray ExecuteAPIRetJArray(string url, string parameters)
+        {
+            using (var httpClient = new HttpClient())
+            {
+                var response = httpClient.GetStringAsync(new Uri(url + parameters)).Result;
+                var jresponse = JsonConvert.DeserializeObject<JArray>(response);
+                return jresponse;
+            }
         }
 
-        public Template SetTemplate(string startDate, string endDate, JObject jsonciresponse, JToken jsonaccresponse)
+        public Template SetTemplate(string tenAgreementRef, string startDate, JObject jsonciresponse, JToken jsontransdetresponse, JArray jsonrentbreakiresponse)
         {
-            // Adds elements to the header template
-            template.Elements.Add(new Image(ConfigurationManager.AppSettings["StatementImagePath"], LEFTMARGIN, 0));
-            int currentPos = 30;
+            int currentPos = 0;
             int LeftLabelWidth = 100;
             int RightLabelWidth = 300;
             int RightLabelStart = LeftLabelWidth + 20;
-            template.Elements.Add(new Label("Name", LEFTMARGIN, currentPos += BoldFontSize, LeftLabelWidth, BoldFontSize, Font.Helvetica, NormalFontSize));
+            // Adds elements to the header template
+            template.Elements.Add(new Image(ConfigurationManager.AppSettings["StatementImagePath"], LEFTMARGIN, 0));
+            template.Elements.Add(new Label("Rent transactions", LEFTMARGIN, currentPos, RightLabelWidth, TitleFontSize, Font.HelveticaBold, TitleFontSize));
+            template.Elements.Add(new Label("Name", LEFTMARGIN, currentPos += TitleFontSize + 10, LeftLabelWidth, BoldFontSize, Font.Helvetica, NormalFontSize));
             string customername = string.Format("{0} {1} {2}", jsonciresponse["title"], jsonciresponse["firstName"], jsonciresponse["lastName"]);
             template.Elements.Add(new Label(customername, RightLabelStart, currentPos, RightLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
+            string strBreakdownsDesc = "";
+            string strBreakdownsValues = "";
+            foreach (var rentBreakdown in jsonrentbreakiresponse)
+            {
+                float fcurrentval = float.Parse(rentBreakdown["value"].ToString());
+                strBreakdownsDesc += string.Format("{0}\n", rentBreakdown["description"].ToString().Trim());
+                strBreakdownsValues += string.Format("{0}\n", fcurrentval.ToString("c2"));
+            }
+            float frent = float.Parse(jsontransdetresponse["rent"].ToString());
+            strBreakdownsDesc += "Total Rent";
+            strBreakdownsValues += string.Format("{0}\n", frent.ToString("c2"));
+
+            template.Elements.Add(new Label(strBreakdownsDesc, PAGE_MIDDLE, currentPos, RightLabelWidth + 500, 600, Font.Helvetica, 9));
+            template.Elements.Add(new Label(strBreakdownsValues, PAGE_MIDDLE + 100, currentPos, RightLabelWidth + 500, 600, Font.HelveticaBold, 9));
+
             template.Elements.Add(new Label("Address", LEFTMARGIN, currentPos += BoldFontSize, LeftLabelWidth, BoldFontSize, Font.Helvetica, NormalFontSize));
             template.Elements.Add(new Label(jsonciresponse["addressLine1"].ToString(), RightLabelStart, currentPos, RightLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
             template.Elements.Add(new Label(jsonciresponse["addressLine2"].ToString(), RightLabelStart, currentPos += BoldFontSize, RightLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
             template.Elements.Add(new Label(jsonciresponse["addressLine3"].ToString(), RightLabelStart, currentPos += BoldFontSize, RightLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
             template.Elements.Add(new Label(jsonciresponse["postCode"].ToString(), RightLabelStart, currentPos += BoldFontSize, RightLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
-            template.Elements.Add(new Label("Account", LEFTMARGIN, currentPos += BoldFontSize, LeftLabelWidth, BoldFontSize, Font.Helvetica, NormalFontSize));
-            template.Elements.Add(new Label(jsonaccresponse["tagReferenceNumber"].ToString(), RightLabelStart, currentPos, LeftLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
+            template.Elements.Add(new Label("Payment Ref", LEFTMARGIN, currentPos += BoldFontSize, LeftLabelWidth, BoldFontSize, Font.Helvetica, NormalFontSize));
+            template.Elements.Add(new Label(jsontransdetresponse["paymentReferenceNumber"].ToString(), RightLabelStart, currentPos, LeftLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
+            currentPos += 30;//Adding some buffer space
 
-            currentPos += 20;//Adding some buffer space
-            template.Elements.Add(new Label("Transactions since:", LEFTMARGIN, currentPos += BoldFontSize, LeftLabelWidth + 50, BoldFontSize, Font.Helvetica, BoldFontSize2));
-            template.Elements.Add(new Label("Until:", 150, currentPos, LeftLabelWidth, BoldFontSize, Font.Helvetica, BoldFontSize2));
-            template.Elements.Add(new Label(string.Format("As of {0} your balance is:", DateTime.Today.ToString("dd MMM yyyy")), 300, currentPos, RightLabelWidth, BoldFontSize, Font.Helvetica, BoldFontSize2));
-            template.Elements.Add(new Label(startDate, LEFTMARGIN, currentPos += BoldFontSize, LeftLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
-            template.Elements.Add(new Label(endDate, 150, currentPos, LeftLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
-            CurrentBalance = jsonaccresponse["currentBalance"].ToString();
+            template.Elements.Add(new Line(LEFTMARGIN, currentPos += BoldFontSize, PageWidth, currentPos));
+
+            currentPos += 5;//Adding some buffer space
+            template.Elements.Add(new Label(string.Format("As of {0} your balance is:", DateTime.Today.ToString("dd MMM yyyy")), PAGE_MIDDLE, currentPos, RightLabelWidth, BoldFontSize, Font.Helvetica, BoldFontSize2));
+
+            string strTransactionDateText = string.Format("Transactions: {0} to {1}", startDate, DateTime.Now.ToString("dd/MM/yyyy"));
+            template.Elements.Add(new Label(strTransactionDateText, LEFTMARGIN, currentPos += BoldFontSize2, LeftLabelWidth + 300, BoldFontSize, Font.Helvetica, NormalFontSize));
+            CurrentBalance = jsontransdetresponse["displayBalance"].ToString();
+            string IsCreditOrArears = " is in credit";
+            if (CurrentBalance.Contains("-"))
+            {
+                IsCreditOrArears = " is in arrears";
+            }
             RecordBalance = float.Parse(CurrentBalance);
-            template.Elements.Add(new Label(CurrentBalance, 300, currentPos, LeftLabelWidth, BoldFontSize, Font.HelveticaBold, BoldFontSize));
+            string DisplayRecordBalance = RecordBalance.ToString("c2") + IsCreditOrArears;
+            template.Elements.Add(new Label(DisplayRecordBalance, 300, currentPos, LeftLabelWidth + 100, BoldFontSize, Font.HelveticaBold, BoldFontSize));
 
-            template.Elements.Add(new Label("Money into", POS_INTO, TABLE_TOP, 156, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
-            template.Elements.Add(new Label("Money out of", POS_OUTOF, TABLE_TOP, 156, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
+            template.Elements.Add(new Label("You can pay online anytime by visiting ", LEFTMARGIN, currentPos += BoldFontSize, LeftLabelWidth + 300, BoldFontSize, Font.Helvetica, BoldFontSize2));
+            string strlinktest = "www.hackney.gov.uk/rentaccount";
+            Label lbl = new Label(strlinktest, 210, currentPos, LeftLabelWidth + 100, BoldFontSize + 10, Font.Helvetica, BoldFontSize2, RgbColor.Blue);
+            lbl.Underline = true;
+            template.Elements.Add(lbl);
+            template.Elements.Add(new Link(210, currentPos, LeftLabelWidth + 100, BoldFontSize + 10, new UrlAction(strlinktest)));
 
             template.Elements.Add(new Label("Date", LEFTMARGIN, TABLE_TOP + BoldFontSize2, 100, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
             template.Elements.Add(new Label("Type of transaction", POS_TRANSACTION, TABLE_TOP + BoldFontSize2, 200, 11, Font.HelveticaBold, BoldFontSize2));
-            template.Elements.Add(new Label("your account", POS_INTO, TABLE_TOP + BoldFontSize2, 100, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
-            template.Elements.Add(new Label("your account", POS_OUTOF, TABLE_TOP + BoldFontSize2, 100, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
+            template.Elements.Add(new Label("Credit", POS_INTO, TABLE_TOP + BoldFontSize2, 100, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
+            template.Elements.Add(new Label("Charges", POS_OUTOF, TABLE_TOP + BoldFontSize2, 100, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
             template.Elements.Add(new Label("Balance", POS_BALANCE, TABLE_TOP + BoldFontSize2, 100, BoldFontSize2, Font.HelveticaBold, BoldFontSize2));
             template.Elements.Add(new Line(LEFTMARGIN, CURRENT_Y, PageWidth, CURRENT_Y));
 
@@ -178,29 +227,15 @@ namespace NCCPdfReports
             }
 
             // Adds Labels to the document with data from the current node
-             currentPage.Elements.Add(new Label(string.Format("{0:d}", transDate.ToShortDateString()), LEFTMARGIN, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
-            currentPage.Elements.Add(new Label(response["debDesc"].ToString(), POS_TRANSACTION, CURRENT_Y + 3, 200, BoldFontSize2, Font.Helvetica, BoldFontSize2));
-            var realvalue = response["realValue"].ToString();
-            var DebitValue = "";
-            var CreditValue = "";
-            float fDebitValue = 0F;
-            float fCreditValue = 0F;
-            if (realvalue.IndexOf("-") != -1)
-            {
-                CreditValue = realvalue;
-                fCreditValue = float.Parse(CreditValue);
-                RecordBalance = RecordBalance - fCreditValue;
-            }
-            else
-            {
-                DebitValue = realvalue;
-                fDebitValue = float.Parse(DebitValue);
-                RecordBalance = RecordBalance - fDebitValue;
-            }
+            currentPage.Elements.Add(new Label(string.Format("{0:d}", transDate.ToShortDateString()), LEFTMARGIN, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
+            currentPage.Elements.Add(new Label(response["description"].ToString(), POS_TRANSACTION, CURRENT_Y + 3, 200, BoldFontSize2, Font.Helvetica, BoldFontSize2));
 
-            currentPage.Elements.Add(new Label(DebitValue, POS_INTO, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
-            currentPage.Elements.Add(new Label(CreditValue, POS_OUTOF, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
-            currentPage.Elements.Add(new Label(RecordBalance.ToString("c2"), POS_BALANCE, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
+            string moneyin = response["in"].ToString();
+            string monyeout = response["out"].ToString();
+            string balance = response["balance"].ToString();
+            currentPage.Elements.Add(new Label(moneyin, POS_INTO, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
+            currentPage.Elements.Add(new Label(monyeout, POS_OUTOF, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
+            currentPage.Elements.Add(new Label(balance, POS_BALANCE, CURRENT_Y + 3, 100, BoldFontSize2, Font.Helvetica, BoldFontSize2));
             template.Elements.Add(new Line(LEFTMARGIN, CURRENT_Y, PageWidth, CURRENT_Y, 1));
             // Toggles alternating background
             alternateBG = !alternateBG;
@@ -209,21 +244,22 @@ namespace NCCPdfReports
             CURRENT_Y += 18;
         }
 
-        public void BuildDocument(DateTime startDate, DateTime endDate, Document document, List<JToken> transResponse)
+        public void BuildDocument(DateTime startDate, Document document, JArray transResponse)
         {
             bool hasRecords = false;
             // Builds the PDF document with data from the XML Data
             AddNewPage(document);
             foreach (var response in transResponse)
             {
-                DateTime transDate = DateTime.Parse(response["postDate"].ToString());
-                if(transDate > startDate && transDate < endDate)
+                DateTime transDate = DateTime.Parse(response["date"].ToString());
+                if (transDate > startDate)
                 {
                     //Add current node to the document
                     AddRecord(transDate, document, response);
                     hasRecords = true;
                 }
             }
+
             if (!hasRecords)
             {
                 currentPage.Elements.Add(new Label("No records found for the given date range of the statement.", LEFTMARGIN, CURRENT_Y + 3, PageWidth, BoldFontSize2, Font.Helvetica, BoldFontSize2));
@@ -239,5 +275,6 @@ namespace NCCPdfReports
             alternateBG = false;
             document.Pages.Add(currentPage);
         }
+
     }
 }

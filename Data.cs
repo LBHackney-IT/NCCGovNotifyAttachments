@@ -11,7 +11,7 @@ namespace NCCGovNotifyAttachments
     class Data
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
-        private static string _connstring = ConfigurationManager.AppSettings["CRM365BISQLCloudConnString"];
+        private static string _connstring = ConfigurationManager.AppSettings["CRM365BISQLConnString"];
 
         public static List<GovNotifierEmailPdfInParams> FetchAll()
         {
@@ -21,7 +21,7 @@ namespace NCCGovNotifyAttachments
                 {
                     logger.Debug($@"Calling query for Fetch all");
                     var results = conn.Query<GovNotifierEmailPdfInParams>(
-                        $@"select [Id], [ContactId],[StartDate],[EndDate],
+                        $@"select [Id], [ContactId], [TenancyAgreementRef], [StartDate],
                         [GovTemplateId] TemplateId, [GovTemplateData] TemplateData,[EmailId] EmailTo from [LBH_Ext_GovNotifyEmailStatements]
                         where [Status] = 1 or [Status] <> 0"
                     ).ToList();

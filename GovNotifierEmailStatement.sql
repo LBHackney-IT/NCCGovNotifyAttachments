@@ -14,7 +14,6 @@ CREATE TABLE dbo.LBH_Ext_GovNotifyEmailStatements
 	[ContactId] [nvarchar](200) NOT NULL,
 	[TenancyAgreementRef] [nvarchar](50) NOT NULL,
 	[StartDate] [datetime] NOT NULL,
-	[EndDate] [datetime] NOT NULL,
 	[GovTemplateId]  [nvarchar](200) NOT NULL,
 	[GovTemplateData]  [nvarchar](max) NULL,
 	[EmailId]  [nvarchar](200) NULL,

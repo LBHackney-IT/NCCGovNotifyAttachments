@@ -9,8 +9,8 @@ namespace LbhNCCApi.Models
     {
         public string Id { get; set; }//this is needed to access
         public string ContactId { get; set; }
+        public string TenancyAgreementRef { get; set; }
         public string StartDate { get; set; }
-        public string EndDate { get; set; }
         public string EmailTo { get; set; }
         public string TemplateId { get; set; }
         public string TemplateData { get; set; }

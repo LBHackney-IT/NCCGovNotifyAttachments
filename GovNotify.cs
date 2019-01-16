@@ -32,7 +32,7 @@ namespace NCCGovNotifyAttachments
             {
                 Data.StatusUpdate(inparam.Id, "2", "In progress", DebugInfo.Append("Inside SendEmail to start Generating pdf.\r\n").ToString());
                 logger.Debug($@"In progress with for GeneratePdfDocument");
-                Document document = new BuildDoc().GeneratePdfDocument(inparam.ContactId, inparam.StartDate, inparam.EndDate);
+                Document document = new BuildDoc().GeneratePdfDocument(inparam.ContactId,inparam.TenancyAgreementRef, inparam.StartDate);
                 
                 if (document!=null)
                 {
