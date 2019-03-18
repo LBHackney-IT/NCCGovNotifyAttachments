@@ -168,6 +168,8 @@ namespace NCCPdfReports
                 strBreakdownsDesc += string.Format("{0}\n", rentBreakdown["description"].ToString().Trim());
                 strBreakdownsValues += string.Format("{0,10:C2}\n", fcurrentval);
             }
+            strBreakdownsDesc += "__________________________\n";
+            strBreakdownsValues += "______\n";
             float frent = float.Parse(jsontransdetresponse["rent"].ToString());
             if (tenureType == "LEA")
             {
