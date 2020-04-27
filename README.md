@@ -1,5 +1,4 @@
 # NCCGovNotifyAttachments
-<<<<<<< HEAD
 =======
 The NCC Gov Notify Attahments application for Neighbourhood Contact Centre CRM application where agents sends an email to the customer using Gov Notification service https://www.notifications.service.gov.uk/.   So this application generates the .pdf statements and uploads the document on to Gov Notification site.   Then Gov Notifier sends an email with the document link from their site.
 
@@ -34,4 +33,3 @@ For Developement we have used Microsoft Visual Studio 2013/2017.
 
 - **Rashmi Shetty**, Development Manager at London Borough of Hackney (rashmi.shetty@hackney.gov.uk)
 - **Susan McFarland-Lyons**, Senior Delivery Manager at London Borough of Hackney (susan.mcfarland-lyons@hackney.gov.uk)
->>>>>>> 10343603736119ec9a7558589a3b67302b4f316d
